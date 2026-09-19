@@ -1,5 +1,8 @@
 # Security Policy
 
+> [!WARNING]
+> **This repository is deprecated.** The contracts no longer receive security patches. [IP Portal](https://portal.story.foundation/) and the related services shut down on **October 15, 2026**. See the [README](./README.md) for details.
+
 The security of Story is critical. If you discover any security vulnerabilities, we appreciate your help in responsibly disclosing them to us.
 
 ## Reporting a Vulnerability
