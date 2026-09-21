@@ -1,4 +1,14 @@
 # Story Proof-of-Creativity Core
+
+> [!WARNING]
+> **This repository is deprecated.**
+>
+> The Story Proof-of-Creativity contracts in this repository are deprecated as of September 19, 2026. This repository no longer receives new features, bug fixes, or security patches.
+>
+> [IP Portal](https://portal.story.foundation/) and the related services shut down on **October 15, 2026**. After that date, these services stop working. Deployed contracts stay on chain, but no team supports them.
+>
+> Do not start new integrations with this codebase. If you use these contracts today, plan your migration before October 15, 2026.
+
 [![Version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fstoryprotocol%2Fprotocol-core-v1%2Fmain%2Fpackage.json&query=%24.version&label=latest%20version)](https://github.com/storyprotocol/protocol-core-v1/releases)
 [![Documentation](https://img.shields.io/badge/docs-v1-006B54)](https://docs.story.foundation/docs/what-is-story)
 [![Website](https://img.shields.io/badge/website-story-00A170)](https://story.foundation)
