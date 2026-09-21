@@ -1826,6 +1826,71 @@ contract AccessControllerTest is BaseTest {
         );
     }
 
+    // transient permission used by one IP account must not switch other accounts' permission reads
+    // to transient storage for the rest of the transaction
+    function test_AccessController_transientPermissionDoesNotAffectOtherAccounts() public {
+        address signer = vm.addr(2);
+        address owner2 = vm.addr(3);
+        address signer2 = vm.addr(4);
+
+        // second IP account with a permanent ALLOW permission
+        mockNFT.mintId(owner2, tokenId + 1);
+        IIPAccount ipAccount2 = IIPAccount(
+            payable(ipAssetRegistry.register(block.chainid, address(mockNFT), tokenId + 1))
+        );
+        vm.prank(owner2);
+        ipAccount2.execute(
+            address(accessController),
+            0,
+            abi.encodeWithSignature(
+                "setPermission(address,address,address,bytes4,uint8)",
+                address(ipAccount2),
+                signer2,
+                address(mockModule),
+                mockModule.executeSuccessfully.selector,
+                AccessPermission.ALLOW
+            )
+        );
+
+        // first IP account uses a transient permission in the same transaction
+        vm.prank(owner);
+        ipAccount.execute(
+            address(accessController),
+            0,
+            abi.encodeWithSignature(
+                "setTransientPermission(address,address,address,bytes4,uint8)",
+                address(ipAccount),
+                signer,
+                address(mockModule),
+                bytes4(0),
+                AccessPermission.ALLOW
+            )
+        );
+
+        // the second account's permanent permission must still be honored
+        assertEq(
+            accessController.getPermission(
+                address(ipAccount2),
+                signer2,
+                address(mockModule),
+                mockModule.executeSuccessfully.selector
+            ),
+            AccessPermission.ALLOW
+        );
+        accessController.checkPermission(
+            address(ipAccount2),
+            signer2,
+            address(mockModule),
+            mockModule.executeSuccessfully.selector
+        );
+
+        // and the first account's own transient permission still applies
+        assertEq(
+            accessController.getPermission(address(ipAccount), signer, address(mockModule), bytes4(0)),
+            AccessPermission.ALLOW
+        );
+    }
+
     // transient permission can override persistent permission
     function test_AccessController_transientPermissionOverridePersistentPermission() public {
         address signer = vm.addr(2);
