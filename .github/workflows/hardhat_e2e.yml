@@ -57,19 +57,27 @@ jobs:
 
     steps:
       - name: Print Inputs
+        env:
+          DEVNET_VERSION: ${{ inputs.devnet_version || github.event.inputs.devnet_version || 'internal-devnet' }}
+          ERC721_ADDRESS: ${{ inputs.erc721_address || github.event.inputs.erc721_address || '' }}
+          OOV3_ADDRESS: ${{ inputs.oov3_address || github.event.inputs.oov3_address || '' }}
+          DEPLOY_OOV3: ${{ inputs.deploy_oov3 || github.event.inputs.deploy_oov3 || '' }}
+          SCHEDULE: ${{ inputs.schedule || github.event.inputs.schedule || '' }}
         run: |
           echo "Inputs:"
-          echo "devnet_version: ${{ inputs.devnet_version || github.event.inputs.devnet_version || 'internal-devnet' }}"
-          echo "erc721_address: ${{ inputs.erc721_address || github.event.inputs.erc721_address || '' }}"
-          echo "oov3_address: ${{ inputs.oov3_address || github.event.inputs.oov3_address || '' }}"
-          echo "deploy_oov3: ${{ inputs.deploy_oov3 || github.event.inputs.deploy_oov3 || '' }}"
-          echo "schedule: ${{ inputs.schedule || github.event.inputs.schedule || '' }}"
+          echo "devnet_version: $DEVNET_VERSION"
+          echo "erc721_address: $ERC721_ADDRESS"
+          echo "oov3_address: $OOV3_ADDRESS"
+          echo "deploy_oov3: $DEPLOY_OOV3"
+          echo "schedule: $SCHEDULE"
 
   set-devnet-constants:
     runs-on: ubuntu-latest
     steps:
       - name: Devnet Version
         id: devnet_version
+        env:
+          DEVNET_VERSION: ${{ inputs.devnet_version || github.event.inputs.devnet_version || 'internal-devnet' }}
         run: |
           declare -A devnet_config=(
             ["devnet"]="1315 http://r1-d.odyssey-devnet.storyrpc.io:8545"
@@ -77,7 +85,7 @@ jobs:
             ["internal-devnet"]="1512 https://rpc.devnet.storyrpc.io"
           )
 
-          devnet_version="${{ inputs.devnet_version || github.event.inputs.devnet_version || 'internal-devnet' }}"
+          devnet_version="$DEVNET_VERSION"
 
           if [[ -n "${devnet_config[$devnet_version]}" ]]; then
             read -r chainid rpcurl <<< "${devnet_config[$devnet_version]}"
@@ -115,10 +123,12 @@ jobs:
     steps:
       - name: Echo 721 address
         id: prepare
+        env:
+          ERC721_ADDRESS: ${{ inputs.erc721_address || github.event.inputs.erc721_address || '' }}
         run: |
-          erc721_address=${{ inputs.erc721_address || github.event.inputs.erc721_address || '' }}
-          echo "STORY_ERC721=$erc721_address" >> $GITHUB_ENV
-          echo "::set-output name=STORY_ERC721::$erc721_address"
+          erc721_address="$ERC721_ADDRESS"
+          echo "STORY_ERC721=$erc721_address" >> "$GITHUB_ENV"
+          echo "STORY_ERC721=$erc721_address" >> "$GITHUB_OUTPUT"
 
     outputs:
       STORY_ERC721: ${{ steps.prepare.outputs.STORY_ERC721 }}
@@ -151,20 +161,24 @@ jobs:
 
       - name: Deploy MockERC721 Contract
         id: deploy-mock-erc721
+        env:
+          ERC721_ADDRESS: ${{ inputs.erc721_address || github.event.inputs.erc721_address || '' }}
+          RPCURL: ${{ needs.set-devnet-constants.outputs.RPCURL }}
+          STORY_PRIVATEKEY: ${{ secrets.STORY_PRIVATEKEY }}
         run: |
-          erc721_address=${{ inputs.erc721_address || github.event.inputs.erc721_address || '' }}
+          erc721_address="$ERC721_ADDRESS"
           if [[ -n "$erc721_address" ]]; then
             echo "ERC721 address provided: $erc721_address"
             erc721=$erc721_address
           else
             echo "Deploying MockERC721 contract"
-            result=$(forge create --rpc-url ${{ needs.set-devnet-constants.outputs.RPCURL }} --broadcast --private-key ${{ secrets.STORY_PRIVATEKEY }} --optimize --optimizer-runs 30000 --legacy --json test/foundry/mocks/token/MockERC721.sol:MockERC721 --constructor-args "MockERC" "MockERC" 2>&1)
-            echo $result
-            erc721=$(echo $result | grep deployedTo | jq -r '.deployedTo')
+            result=$(forge create --rpc-url "$RPCURL" --broadcast --private-key "$STORY_PRIVATEKEY" --optimize --optimizer-runs 30000 --legacy --json test/foundry/mocks/token/MockERC721.sol:MockERC721 --constructor-args "MockERC" "MockERC" 2>&1)
+            echo "$result"
+            erc721=$(echo "$result" | grep deployedTo | jq -r '.deployedTo')
             echo "Deployed to: $erc721"
           fi
 
-          echo "STORY_ERC721=$erc721" >> $GITHUB_OUTPUT
+          echo "STORY_ERC721=$erc721" >> "$GITHUB_OUTPUT"
     outputs:
       STORY_ERC721: ${{ steps.deploy-mock-erc721.outputs.STORY_ERC721 }}
 
@@ -249,17 +263,25 @@ jobs:
           version: nightly
 
       - name: 'Create env file'
+        env:
+          STORY_PRIVATEKEY: ${{ secrets.STORY_PRIVATEKEY }}
+          STORY_USER1: ${{ secrets.STORY_USER1 }}
+          STORY_USER2: ${{ secrets.STORY_USER2 }}
+          STORY_URL: ${{ needs.set-devnet-constants.outputs.RPCURL }}
+          STORY_CHAINID: ${{ needs.set-devnet-constants.outputs.CHAINID }}
+          STORY_ERC721: ${{ needs.deploy-erc721.outputs.STORY_ERC721 || needs.prepare-erc721.outputs.STORY_ERC721 }}
+          STORY_OOV3: ${{ needs.deploy-oov3-sandbox.outputs.OOV3_ADDRESS || inputs.oov3_address || github.event.inputs.oov3_address }}
         run: |
           touch .env
-          echo "MAINNET_PRIVATEKEY=${{ secrets.STORY_PRIVATEKEY }}" >> .env
-          echo "SEPOLIA_PRIVATEKEY=${{ secrets.STORY_PRIVATEKEY }}" >> .env
-          echo "STORY_PRIVATEKEY=${{ secrets.STORY_PRIVATEKEY }}" >> .env
-          echo "STORY_USER1=${{ secrets.STORY_USER1 }}" >> .env
-          echo "STORY_USER2=${{ secrets.STORY_USER2 }}" >> .env    
-          echo "STORY_URL=${{ needs.set-devnet-constants.outputs.RPCURL }}" >> .env
-          echo "STORY_CHAINID=${{ needs.set-devnet-constants.outputs.CHAINID }}" >> .env
-          echo "STORY_ERC721=${{ needs.deploy-erc721.outputs.STORY_ERC721 || needs.prepare-erc721.outputs.STORY_ERC721 }}" >> .env
-          echo "STORY_OOV3=${{ needs.deploy-oov3-sandbox.outputs.OOV3_ADDRESS || inputs.oov3_address || github.event.inputs.oov3_address }}" >> .env
+          echo "MAINNET_PRIVATEKEY=$STORY_PRIVATEKEY" >> .env
+          echo "SEPOLIA_PRIVATEKEY=$STORY_PRIVATEKEY" >> .env
+          echo "STORY_PRIVATEKEY=$STORY_PRIVATEKEY" >> .env
+          echo "STORY_USER1=$STORY_USER1" >> .env
+          echo "STORY_USER2=$STORY_USER2" >> .env
+          echo "STORY_URL=$STORY_URL" >> .env
+          echo "STORY_CHAINID=$STORY_CHAINID" >> .env
+          echo "STORY_ERC721=$STORY_ERC721" >> .env
+          echo "STORY_OOV3=$STORY_OOV3" >> .env
 
           # add one more blank line to .env
           echo "" >> .env
@@ -280,15 +302,17 @@ jobs:
 
       - name: Copy report to date folder
         id: create_folder
+        env:
+          ENV_NAME: ${{ inputs.devnet_version || github.event.inputs.devnet_version || 'devnet' }}
         run: |
           folder_name=$(date +%Y%m%d)
           echo "Folder name: $folder_name"
 
           # Determine version_name based on devnet_version
-          env_name=${{ inputs.devnet_version || github.event.inputs.devnet_version || 'devnet' }}
+          env_name="$ENV_NAME"
           
-          mkdir -p ./tmp/$folder_name/$env_name
-          cp -R ./mochawesome-report/* ./tmp/$folder_name/$env_name
+          mkdir -p "./tmp/$folder_name/$env_name"
+          cp -R ./mochawesome-report/* "./tmp/$folder_name/$env_name"
 
       - name: Deploy report to GitHub Pages
         if: ${{ inputs.deploy_report == 'true' }}
