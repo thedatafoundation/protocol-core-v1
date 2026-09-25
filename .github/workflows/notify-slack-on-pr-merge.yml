@@ -11,11 +11,33 @@ jobs:
 
     steps:
       - name: Send Slack Notification
+        env:
+          # Pass untrusted/context values via env so they are not interpolated into the script text.
+          # (Direct ${{ github.event.pull_request.title }} inside run: enables shell injection.)
+          REPO: ${{ github.repository }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          SLACK_YAO_MEMBER_ID: ${{ secrets.SLACK_YAO_MEMBER_ID }}
+          SLACK_BO_MEMBER_ID: ${{ secrets.SLACK_BO_MEMBER_ID }}
+          SLACK_QA_MESSENGER_WEBHOOK_URL: ${{ secrets.SLACK_QA_MESSENGER_WEBHOOK_URL }}
         run: |
+          payload="$(jq -n \
+            --arg channel "qa-messenger" \
+            --arg repo "$REPO" \
+            --arg title "$PR_TITLE" \
+            --arg yao "$SLACK_YAO_MEMBER_ID" \
+            --arg bo "$SLACK_BO_MEMBER_ID" \
+            --arg url "$PR_URL" \
+            '{
+              channel: $channel,
+              text: (
+                "---\n**PR Merged** \n*Repo:* " + $repo +
+                "\n*Title:* " + $title +
+                "\n*Tag:* <" + $yao + "> <" + $bo +
+                ">\n*Link:* <" + $url + "|View PR>"
+              )
+            }')"
           curl -X POST \
             -H 'Content-type: application/json' \
-            --data '{
-              "channel": "qa-messenger",
-              "text": "---\n**PR Merged** \n*Repo:* '"${{ github.repository }}"'\n*Title:* '"${{ github.event.pull_request.title }}"'\n*Tag:* <'"${{ secrets.SLACK_YAO_MEMBER_ID }}"'> <'"${{ secrets.SLACK_BO_MEMBER_ID }}"'>\n*Link:* <'"${{ github.event.pull_request.html_url }}"'|View PR>"
-            }' \
-            ${{ secrets.SLACK_QA_MESSENGER_WEBHOOK_URL }}
+            --data "$payload" \
+            "$SLACK_QA_MESSENGER_WEBHOOK_URL"
