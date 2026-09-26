@@ -101,7 +101,7 @@ contract GroupNFT is IGroupNFT, ERC721Upgradeable, AccessManagedUpgradeable, UUP
                 '"name": "Story Protocol IP Assets Group #',
                 id.toString(),
                 '",',
-                '"description": IPAsset Group",',
+                '"description": "IPAsset Group",',
                 '"external_url": "https://protocol.storyprotocol.xyz/ipa/',
                 id.toString(),
                 '",',

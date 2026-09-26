@@ -50,7 +50,7 @@ contract StorageLayoutChecker is Script {
         uint8 i = 0;
         // npx @openzeppelin/upgrades-core validate <build-info-dir> --requireReference
         inputBuilder[i++] = "npx";
-        inputBuilder[i++] = string.concat("@openzeppelin/upgrades-core");
+        inputBuilder[i++] = "@openzeppelin/upgrades-core";
         inputBuilder[i++] = "validate";
         inputBuilder[i++] = string.concat(outDir, "/build-info");
 
