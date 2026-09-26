@@ -1750,6 +1750,54 @@ contract GroupingModuleTest is BaseTest, ERC721Holder {
         groupingModule.claimReward(groupId, address(erc20), claimIpIds);
     }
 
+    function test_GroupingModule_claimReward_revert_RoyaltyTokenNotWhitelisted() public {
+        vm.startPrank(alice);
+        address groupId = groupingModule.registerGroup(address(rewardPool));
+
+        uint256 termsId = pilTemplate.registerLicenseTerms(
+            PILFlavors.commercialRemix({
+                mintingFee: 0,
+                commercialRevShare: 10_000_000,
+                currencyToken: address(erc20),
+                royaltyPolicy: address(royaltyPolicyLRP)
+            })
+        );
+
+        Licensing.LicensingConfig memory licensingConfig = Licensing.LicensingConfig({
+            isSet: true,
+            mintingFee: 0,
+            licensingHook: address(0),
+            hookData: "",
+            commercialRevShare: 10 * 10 ** 6,
+            disabled: false,
+            expectMinimumGroupRewardShare: 10 * 10 ** 6,
+            expectGroupRewardPool: address(0)
+        });
+        licensingModule.attachLicenseTerms(groupId, address(pilTemplate), termsId);
+        licensingModule.setLicensingConfig(groupId, address(pilTemplate), termsId, licensingConfig);
+        vm.stopPrank();
+
+        licensingConfig.expectGroupRewardPool = address(evenSplitGroupPool);
+
+        vm.startPrank(ipOwner1);
+        licensingModule.attachLicenseTerms(ipId1, address(pilTemplate), termsId);
+        licensingModule.setLicensingConfig(ipId1, address(pilTemplate), termsId, licensingConfig);
+        vm.stopPrank();
+
+        vm.prank(alice);
+        address[] memory ipIds = new address[](1);
+        ipIds[0] = ipId1;
+        groupingModule.addIp(groupId, ipIds, 100e6);
+
+        vm.prank(u.admin);
+        royaltyModule.whitelistRoyaltyToken(address(erc20), false);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(Errors.GroupingModule__RoyaltyTokenNotWhitelisted.selector, groupId, address(erc20))
+        );
+        groupingModule.claimReward(groupId, address(erc20), ipIds);
+    }
+
     function test_GroupingModule_collectRoyalties_revert_disputedGroup() public {
         uint256 termsId = pilTemplate.registerLicenseTerms(
             PILFlavors.commercialRemix({
@@ -1801,6 +1849,27 @@ contract GroupingModuleTest is BaseTest, ERC721Holder {
 
         vm.expectRevert(
             abi.encodeWithSelector(Errors.GroupingModule__DisputedGroupCannotCollectRoyalties.selector, groupId)
+        );
+        groupingModule.collectRoyalties(groupId, address(erc20));
+    }
+
+    function test_groupingModule_collectRoyalties_revert_RoyaltyTokenNotWhitelisted() public {
+        address groupId = groupingModule.registerGroup(address(rewardPool));
+        uint256 termsId = pilTemplate.registerLicenseTerms(
+            PILFlavors.commercialRemix({
+                mintingFee: 0,
+                commercialRevShare: 10_000_000,
+                currencyToken: address(erc20),
+                royaltyPolicy: address(royaltyPolicyLRP)
+            })
+        );
+        licensingModule.attachLicenseTerms(groupId, address(pilTemplate), termsId);
+
+        vm.prank(u.admin);
+        royaltyModule.whitelistRoyaltyToken(address(erc20), false);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(Errors.GroupingModule__RoyaltyTokenNotWhitelisted.selector, groupId, address(erc20))
         );
         groupingModule.collectRoyalties(groupId, address(erc20));
     }
