@@ -604,7 +604,8 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
         _predeploy("RoyaltyPolicyLAP");
         impl = address(new RoyaltyPolicyLAP(
             address(royaltyModule),
-            newDeployedIpGraphACL ? _getDeployedAddress(type(IPGraphACL).name) : address(ipGraphACL)
+            newDeployedIpGraphACL ? _getDeployedAddress(type(IPGraphACL).name) : address(ipGraphACL),
+            address(disputeModule)
         ));
         royaltyPolicyLAP = RoyaltyPolicyLAP(
             TestProxyHelper.deployUUPSProxy(
@@ -626,7 +627,8 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
         impl = address(new RoyaltyPolicyLRP(
             address(royaltyModule),
             address(royaltyPolicyLAP),
-            newDeployedIpGraphACL ? _getDeployedAddress(type(IPGraphACL).name) : address(ipGraphACL)
+            newDeployedIpGraphACL ? _getDeployedAddress(type(IPGraphACL).name) : address(ipGraphACL),
+            address(disputeModule)
         ));
         royaltyPolicyLRP = RoyaltyPolicyLRP(
             TestProxyHelper.deployUUPSProxy(

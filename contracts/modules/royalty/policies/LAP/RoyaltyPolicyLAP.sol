@@ -10,6 +10,7 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IRoyaltyModule } from "../../../../interfaces/modules/royalty/IRoyaltyModule.sol";
 import { IGraphAwareRoyaltyPolicy } from "../../../../interfaces/modules/royalty/policies/IGraphAwareRoyaltyPolicy.sol";
 import { IIpRoyaltyVault } from "../../../../interfaces/modules/royalty/policies/IIpRoyaltyVault.sol";
+import { IDisputeModule } from "../../../../interfaces/modules/dispute/IDisputeModule.sol";
 import { Errors } from "../../../../lib/Errors.sol";
 import { ProtocolPausableUpgradeable } from "../../../../pause/ProtocolPausableUpgradeable.sol";
 import { IPGraphACL } from "../../../../access/IPGraphACL.sol";
@@ -50,6 +51,10 @@ contract RoyaltyPolicyLAP is
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IPGraphACL public immutable IP_GRAPH_ACL;
 
+    /// @notice DisputeModule address
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    IDisputeModule public immutable DISPUTE_MODULE;
+
     /// @dev Restricts the calls to the royalty module
     modifier onlyRoyaltyModule() {
         if (msg.sender != address(ROYALTY_MODULE)) revert Errors.RoyaltyPolicyLAP__NotRoyaltyModule();
@@ -59,13 +64,16 @@ contract RoyaltyPolicyLAP is
     /// @notice Constructor
     /// @param royaltyModule The RoyaltyModule address
     /// @param ipGraphAcl The IPGraphACL address
+    /// @param disputeModule The DisputeModule address
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(address royaltyModule, address ipGraphAcl) {
+    constructor(address royaltyModule, address ipGraphAcl, address disputeModule) {
         if (royaltyModule == address(0)) revert Errors.RoyaltyPolicyLAP__ZeroRoyaltyModule();
         if (ipGraphAcl == address(0)) revert Errors.RoyaltyPolicyLAP__ZeroIPGraphACL();
+        if (disputeModule == address(0)) revert Errors.RoyaltyPolicyLAP__ZeroDisputeModule();
 
         ROYALTY_MODULE = IRoyaltyModule(royaltyModule);
         IP_GRAPH_ACL = IPGraphACL(ipGraphAcl);
+        DISPUTE_MODULE = IDisputeModule(disputeModule);
 
         _disableInitializers();
     }
@@ -131,6 +139,7 @@ contract RoyaltyPolicyLAP is
     ) external whenNotPaused returns (uint256) {
         RoyaltyPolicyLAPStorage storage $ = _getRoyaltyPolicyLAPStorage();
         if (ipId == ancestorIpId) revert Errors.RoyaltyPolicyLAP__SameIpTransfer();
+        if (DISPUTE_MODULE.isIpTagged(ipId)) revert Errors.RoyaltyPolicyLAP__IpTagged();
 
         uint32 ancestorPercent = $.ancestorPercentLAP[ipId][ancestorIpId];
         if (ancestorPercent == 0) {

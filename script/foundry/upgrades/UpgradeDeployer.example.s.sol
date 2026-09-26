@@ -239,7 +239,8 @@ contract UpgradeDeployerExample is JsonDeploymentHandler, BroadcastManager, Upgr
         _predeploy(contractKey);
         impl = address(new RoyaltyPolicyLAP(
             address(royaltyModule),
-            ipGraphACL
+            address(ipGraphACL),
+            address(disputeModule)
         ));
         upgradeProposals.push(UpgradeProposal({ key: contractKey, proxy: address(royaltyPolicyLAP), newImpl: impl }));
         impl = address(0);
@@ -249,7 +250,8 @@ contract UpgradeDeployerExample is JsonDeploymentHandler, BroadcastManager, Upgr
         impl = address(new RoyaltyPolicyLRP(
             address(royaltyModule),
             address(royaltyPolicyLAP),
-            address(ipGraphACL)
+            address(ipGraphACL),
+            address(disputeModule)
         ));
         upgradeProposals.push(UpgradeProposal({ key: contractKey, proxy: address(royaltyPolicyLRP), newImpl: impl }));
         impl = address(0);

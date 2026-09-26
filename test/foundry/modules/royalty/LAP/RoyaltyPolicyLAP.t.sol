@@ -110,22 +110,33 @@ contract TestRoyaltyPolicyLAP is BaseTest {
 
     function test_RoyaltyPolicyLAP_constructor_revert_ZeroRoyaltyModule() public {
         vm.expectRevert(Errors.RoyaltyPolicyLAP__ZeroRoyaltyModule.selector);
-        new RoyaltyPolicyLAP(address(0), address(1));
+        new RoyaltyPolicyLAP(address(0), address(ipGraphACL), address(disputeModule));
     }
 
     function test_RoyaltyPolicyLAP_constructor_revert_ZeroIPGraphACL() public {
         vm.expectRevert(Errors.RoyaltyPolicyLAP__ZeroIPGraphACL.selector);
-        new RoyaltyPolicyLAP(address(1), address(0));
+        new RoyaltyPolicyLAP(address(royaltyModule), address(0), address(disputeModule));
+    }
+
+    function test_RoyaltyPolicyLAP_constructor_revert_ZeroDisputeModule() public {
+        vm.expectRevert(Errors.RoyaltyPolicyLAP__ZeroDisputeModule.selector);
+        new RoyaltyPolicyLAP(address(royaltyModule), address(ipGraphACL), address(0));
     }
 
     function test_RoyaltyPolicyLAP_constructor() public {
-        testRoyaltyPolicyLAP = new RoyaltyPolicyLAP(address(royaltyModule), address(ipGraphACL));
+        testRoyaltyPolicyLAP = new RoyaltyPolicyLAP(
+            address(royaltyModule),
+            address(ipGraphACL),
+            address(disputeModule)
+        );
         assertEq(address(testRoyaltyPolicyLAP.ROYALTY_MODULE()), address(royaltyModule));
         assertEq(address(testRoyaltyPolicyLAP.IP_GRAPH_ACL()), address(ipGraphACL));
     }
 
     function test_RoyaltyPolicyLAP_initialize_revert_ZeroAccessManager() public {
-        address impl = address(new RoyaltyPolicyLAP(address(royaltyModule), address(ipGraphACL)));
+        address impl = address(
+            new RoyaltyPolicyLAP(address(royaltyModule), address(ipGraphACL), address(disputeModule))
+        );
         vm.expectRevert(Errors.RoyaltyPolicyLAP__ZeroAccessManager.selector);
         RoyaltyPolicyLAP(
             TestProxyHelper.deployUUPSProxy(impl, abi.encodeCall(RoyaltyPolicyLAP.initialize, (address(0))))
@@ -243,6 +254,33 @@ contract TestRoyaltyPolicyLAP is BaseTest {
         // first transfer to vault
         vm.expectRevert(Errors.RoyaltyPolicyLAP__SameIpTransfer.selector);
         royaltyPolicyLAP.transferToVault(ipAccount1, ipAccount1, address(USDC));
+    }
+
+    function test_RoyaltyPolicyLAP_transferToVault_revert_IpTagged() public {
+        address randomIpId = address(0x111000aaa);
+        USDC.mint(randomIpId, 1000 * 10 ** 6);
+
+        vm.startPrank(u.alice);
+        address ipAddr = ipAssetRegistry.register(block.chainid, address(mockNFT), 0);
+        licensingModule.attachLicenseTerms(ipAddr, address(pilTemplate), getSelectedPILicenseTermsId("cheap_flexible"));
+        vm.stopPrank();
+
+        // raise dispute
+        vm.startPrank(randomIpId);
+        IERC20(USDC).approve(address(mockArbitrationPolicy), ARBITRATION_PRICE);
+        bytes32 disputeEvidenceHashExample = 0xb7b94ecbd1f9f8cb209909e5785fb2858c9a8c4b220c017995a75346ad1b5db5;
+        disputeModule.raiseDispute(ipAddr, disputeEvidenceHashExample, "IMPROPER_REGISTRATION", "");
+        vm.stopPrank();
+
+        // set dispute judgement
+        (, , , , , , bytes32 currentTagBefore, ) = disputeModule.disputes(1);
+
+        vm.startPrank(u.relayer);
+        disputeModule.setDisputeJudgement(1, true, "");
+        vm.stopPrank();
+
+        vm.expectRevert(Errors.RoyaltyPolicyLAP__IpTagged.selector);
+        royaltyPolicyLAP.transferToVault(ipAddr, address(10), address(USDC));
     }
 
     function test_RoyaltyPolicyLAP_transferToVault() public {

@@ -811,6 +811,9 @@ library Errors {
     /// @notice Zero address provided for IP Graph ACL.
     error RoyaltyPolicyLAP__ZeroIPGraphACL();
 
+    /// @notice Zero address provided for Dispute Module.
+    error RoyaltyPolicyLAP__ZeroDisputeModule();
+
     /// @notice Caller is not the Royalty Module.
     error RoyaltyPolicyLAP__NotRoyaltyModule();
 
@@ -825,6 +828,9 @@ library Errors {
 
     /// @notice Cannot transfer to the Same IP.
     error RoyaltyPolicyLAP__SameIpTransfer();
+
+    /// @notice IP is tagged as infringing.
+    error RoyaltyPolicyLAP__IpTagged();
 
     ////////////////////////////////////////////////////////////////////////////
     //                            Royalty Policy LRP                          //
@@ -842,6 +848,9 @@ library Errors {
     /// @notice Zero address provided for Royalty Policy LAP.
     error RoyaltyPolicyLRP__ZeroRoyaltyPolicyLAP();
 
+    /// @notice Zero address provided for Dispute Module.
+    error RoyaltyPolicyLRP__ZeroDisputeModule();
+
     /// @notice Zero address provided for Access Manager in initializer.
     error RoyaltyPolicyLRP__ZeroAccessManager();
 
@@ -856,6 +865,9 @@ library Errors {
 
     /// @notice Cannot transfer to the Same IP.
     error RoyaltyPolicyLRP__SameIpTransfer();
+
+    /// @notice IP is tagged as infringing.
+    error RoyaltyPolicyLRP__IpTagged();
 
     ////////////////////////////////////////////////////////////////////////////
     //                         IP Royalty Vault                               //

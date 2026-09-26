@@ -105,31 +105,42 @@ contract TestRoyaltyPolicyLRP is BaseTest {
 
     function test_RoyaltyPolicyLRP_constructor_revert_ZeroRoyaltyModule() public {
         vm.expectRevert(Errors.RoyaltyPolicyLRP__ZeroRoyaltyModule.selector);
-        new RoyaltyPolicyLRP(address(0), address(royaltyPolicyLAP), address(ipGraphACL));
+        new RoyaltyPolicyLRP(address(0), address(royaltyPolicyLAP), address(ipGraphACL), address(disputeModule));
     }
 
     function test_RoyaltyPolicyLRP_constructor_revert_ZeroRoyaltyPolicyLAP() public {
         vm.expectRevert(Errors.RoyaltyPolicyLRP__ZeroRoyaltyPolicyLAP.selector);
-        new RoyaltyPolicyLRP(address(royaltyModule), address(0), address(ipGraphACL));
+        new RoyaltyPolicyLRP(address(royaltyModule), address(0), address(ipGraphACL), address(disputeModule));
     }
 
     function test_RoyaltyPolicyLRP_constructor_revert_ZeroIPGraphACL() public {
         vm.expectRevert(Errors.RoyaltyPolicyLRP__ZeroIPGraphACL.selector);
-        new RoyaltyPolicyLRP(address(royaltyModule), address(royaltyPolicyLAP), address(0));
+        new RoyaltyPolicyLRP(address(royaltyModule), address(royaltyPolicyLAP), address(0), address(disputeModule));
+    }
+
+    function test_RoyaltyPolicyLRP_constructor_revert_ZeroDisputeModule() public {
+        vm.expectRevert(Errors.RoyaltyPolicyLRP__ZeroDisputeModule.selector);
+        new RoyaltyPolicyLRP(address(royaltyModule), address(royaltyPolicyLAP), address(ipGraphACL), address(0));
     }
 
     function test_RoyaltyPolicyLRP_constructor() public {
         testRoyaltyPolicyLRP = new RoyaltyPolicyLRP(
             address(royaltyModule),
             address(royaltyPolicyLAP),
-            address(ipGraphACL)
+            address(ipGraphACL),
+            address(disputeModule)
         );
         assertEq(address(testRoyaltyPolicyLRP.ROYALTY_MODULE()), address(royaltyModule));
     }
 
     function test_RoyaltyPolicyLRP_initialize_revert_ZeroAccessManager() public {
         address impl = address(
-            new RoyaltyPolicyLRP(address(royaltyModule), address(royaltyPolicyLAP), address(ipGraphACL))
+            new RoyaltyPolicyLRP(
+                address(royaltyModule),
+                address(royaltyPolicyLAP),
+                address(ipGraphACL),
+                address(disputeModule)
+            )
         );
         vm.expectRevert(Errors.RoyaltyPolicyLRP__ZeroAccessManager.selector);
         RoyaltyPolicyLRP(
@@ -253,6 +264,33 @@ contract TestRoyaltyPolicyLRP is BaseTest {
         // first transfer to vault
         vm.expectRevert(Errors.RoyaltyPolicyLRP__SameIpTransfer.selector);
         royaltyPolicyLRP.transferToVault(ipAccount1, ipAccount1, address(USDC));
+    }
+
+    function test_RoyaltyPolicyLRP_transferToVault_revert_IpTagged() public {
+        address randomIpId = address(0x111000aaa);
+        USDC.mint(randomIpId, 1000 * 10 ** 6);
+
+        vm.startPrank(u.alice);
+        address ipAddr = ipAssetRegistry.register(block.chainid, address(mockNFT), 0);
+        licensingModule.attachLicenseTerms(ipAddr, address(pilTemplate), getSelectedPILicenseTermsId("cheap_flexible"));
+        vm.stopPrank();
+
+        // raise dispute
+        vm.startPrank(randomIpId);
+        IERC20(USDC).approve(address(mockArbitrationPolicy), ARBITRATION_PRICE);
+        bytes32 disputeEvidenceHashExample = 0xb7b94ecbd1f9f8cb209909e5785fb2858c9a8c4b220c017995a75346ad1b5db5;
+        disputeModule.raiseDispute(ipAddr, disputeEvidenceHashExample, "IMPROPER_REGISTRATION", "");
+        vm.stopPrank();
+
+        // set dispute judgement
+        (, , , , , , bytes32 currentTagBefore, ) = disputeModule.disputes(1);
+
+        vm.startPrank(u.relayer);
+        disputeModule.setDisputeJudgement(1, true, "");
+        vm.stopPrank();
+
+        vm.expectRevert(Errors.RoyaltyPolicyLRP__IpTagged.selector);
+        royaltyPolicyLRP.transferToVault(ipAddr, address(10), address(USDC));
     }
 
     function test_RoyaltyPolicyLRP_transferToVault() public {
