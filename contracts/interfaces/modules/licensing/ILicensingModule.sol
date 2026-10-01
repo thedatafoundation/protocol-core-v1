@@ -72,8 +72,6 @@ interface ILicensingModule is IModule {
     /// @notice Mints license tokens for the license terms attached to an IP.
     /// The license tokens are minted to the receiver.
     /// The license terms must be attached to the IP before calling this function.
-    /// But it can mint license token of default license terms without attaching the default license terms,
-    /// since it is attached to all IPs by default.
     /// IP owners can mint license tokens for their IPs for arbitrary license terms
     /// without attaching the license terms to IP.
     /// It might require the caller pay the minting fee, depending on the license terms or configured by the iP owner.
@@ -104,7 +102,6 @@ interface ILicensingModule is IModule {
     /// @notice Registers a derivative directly with parent IP's license terms, without needing license tokens,
     /// and attaches the license terms of the parent IPs to the derivative IP.
     /// The license terms must be attached to the parent IP before calling this function.
-    /// All IPs attached default license terms by default.
     /// The derivative IP owner must be the caller or an authorized operator.
     /// @param childIpId The derivative IP ID.
     /// @param parentIpIds The parent IP IDs.
